@@ -1,8 +1,19 @@
 -- ==============================================================================
 -- GDocument AI Platform
--- Infraestructura de Base de Datos
+-- Infraestructura de Base de Datos - Producción
 -- PostgreSQL + pgvector
 -- ==============================================================================
+
+-- ==========================================================================
+-- INICIALIZACIÓN DE BASE DE DATOS
+-- ==========================================================================
+
+-- Crear la base de datos si no existe de forma segura
+SELECT 'CREATE DATABASE gdocument_ai' 
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'gdocument_ai')\gexec
+
+-- Conectarse explícitamente a la base de datos del proyecto
+\c gdocument_ai
 
 -- ==========================================================================
 -- EXTENSIONES
