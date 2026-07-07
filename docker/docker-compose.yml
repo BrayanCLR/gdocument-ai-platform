@@ -59,6 +59,8 @@ services:
     env_file:
       - ../.env
     environment:
+      - NODE_FUNCTION_ALLOW_BUILTIN=crypto
+      - NODE_FUNCTION_ALLOW_EXTERNAL=crypto
       - N8N_SECURE_COOKIE=false
       - N8N_HOST=n8n.brayan.co
       - N8N_PROXY_HOPS=1

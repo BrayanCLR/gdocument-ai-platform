@@ -1,0 +1,242 @@
+{
+  "name": "GDocument | Data Provider",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://produccion.gdocument.co/app/login",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"login\": \"{{$env.GDOCUMENT_USER}}\",\n    \"clave\": \"{{$env.GDOCUMENT_PASSWORD}}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "name": "2. Autenticar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -912,
+        272
+      ],
+      "id": "90b42ddc-bf33-4c60-ad17-72bd24663851"
+    },
+    {
+      "parameters": {
+        "url": "https://produccion.gdocument.co/api/ejecucion_flujos/usuario?filter=&page=1&size=50&entity=&order%5Bdirection%5D=DESC",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "={{ $json.headers['set-cookie'] }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json, text/plain, */*"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "3. Consultar Bandeja",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -688,
+        272
+      ],
+      "id": "9fcf522e-8e4d-4876-aa14-dfbdb83b506b"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/5 7-17 * * MON-FRI"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1136,
+        272
+      ],
+      "id": "fb8c39de-2e61-486f-861f-3f72fe7c1968",
+      "name": "Disparador - Evento"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data['hydra:member']",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -464,
+        272
+      ],
+      "id": "f28fa247-b50e-4988-aaa7-877cf234ae3c",
+      "name": "Split Out - Separar Tickets"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "jwcE18qV4AWBkrEC",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/jwcE18qV4AWBkrEC",
+          "cachedResultName": "Notifications | WhatsApp Dispatcher"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [
+            ""
+          ],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "mode": "each",
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        272
+      ],
+      "id": "236305b5-79e0-4ed4-b486-727957064039",
+      "name": "Call 'Notifications | WhatsApp Dispatcher'"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===============================\n// GDocument | Data Provider\n// Contract Build\n// ===============================\n\n// Función para limpiar textos\nfunction clean(value) {\n  if (value === null || value === undefined) return null;\n\n  return String(value).replace(/\\r?\\n/g, \" \").replace(/\\s+/g, \" \").trim();\n}\n\n// Función para obtener campos del serial\nfunction serialField(name) {\n  return $json.busqueda?.serial?.[name]?.[0]?.campo ?? null;\n}\n\nreturn {\n  json: {\n    // ===========================\n    // Identificadores\n    // ===========================\n\n    id: $json.id,\n\n    radicado: clean($json.radicado),\n\n    // ===========================\n    // Cliente\n    // ===========================\n\n    empresa: clean($json.busqueda?.cliente),\n\n    ciudad: clean(serialField(\"Cuidad\")),\n\n    sede: clean($json.busqueda?.direccion_de_soporte),\n\n    direccion: clean(\n      serialField(\"Edificio/Dirección\") ?? $json.busqueda?.direccion_de_soporte,\n    ),\n\n    area: clean(serialField(\"Ubicación\")),\n\n    // ===========================\n    // Contacto\n    // ===========================\n\n    contacto: clean($json.busqueda?.contacto_cliente),\n\n    telefono: clean($json.busqueda?.celular_del_solicitante),\n\n    // ===========================\n    // Equipo\n    // ===========================\n\n    marca: clean(serialField(\"Marca\")),\n\n    modelo: clean(serialField(\"Modelo\")),\n\n    serial: clean(serialField(\"Serial\")),\n\n    consumible: clean(serialField(\"Toner y/o Cintas\")),\n\n    // ===========================\n    // Ticket\n    // ===========================\n\n    tipo_requerimiento: clean($json.busqueda?.tipo_de_requerimiento),\n\n    descripcion: clean($json.busqueda?.descripcion_del_requerimiento),\n\n    tecnico_asignado: clean($json.busqueda?.tecnico_asignado),\n\n    estado: clean($json.busqueda?.estado),\n\n    // ===========================\n    // Metadata\n    // ===========================\n\n    fecha_extraccion: new Date().toISOString(),\n\n    origen: \"GDocument\",\n\n    \"schema_version\": \"1.0.0\",\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -240,
+        272
+      ],
+      "id": "8ed72e58-bcbe-46cb-b231-5eb91fe505cc",
+      "name": "Contract Builder"
+    },
+    {
+      "parameters": {
+        "jsCode": "const crypto = require('crypto');\n\nconst ticket = $json;\n\n/*\n|--------------------------------------------------------------------------\n| Documento semántico\n|--------------------------------------------------------------------------\n| Este texto será enviado al modelo de embeddings.\n| Debe contener únicamente información relevante para comprender\n| el contexto técnico del requerimiento.\n|--------------------------------------------------------------------------\n*/\n\nconst documentoSemantico = `\nEmpresa: ${ticket.empresa ?? \"\"}\n\nCiudad: ${ticket.ciudad ?? \"\"}\n\nSede: ${ticket.sede ?? \"\"}\n\nDirección: ${ticket.direccion ?? \"\"}\n\nÁrea: ${ticket.area ?? \"\"}\n\nEquipo: ${ticket.marca ?? \"\"} ${ticket.modelo ?? \"\"}\n\nSerial: ${ticket.serial ?? \"\"}\n\nConsumible: ${ticket.consumible ?? \"\"}\n\nTipo de requerimiento: ${ticket.tipo_requerimiento ?? \"\"}\n\nDescripción:\n\n${ticket.descripcion ?? \"\"}\n`.trim();\n\n\n\n/*\n|--------------------------------------------------------------------------\n| Contenido para detectar cambios\n|--------------------------------------------------------------------------\n| Solo incluye campos que modifican el significado del ticket.\n| NO incluye estado, técnico, fechas ni información administrativa.\n|--------------------------------------------------------------------------\n*/\n\nconst contenidoHash = [\n    ticket.empresa,\n    ticket.ciudad,\n    ticket.sede,\n    ticket.direccion,\n    ticket.area,\n    ticket.marca,\n    ticket.modelo,\n    ticket.serial,\n    ticket.consumible,\n    ticket.tipo_requerimiento,\n    ticket.descripcion\n]\n.filter(Boolean)\n.join(\"|\");\n\n\n\n/*\n|--------------------------------------------------------------------------\n| SHA256\n|--------------------------------------------------------------------------\n*/\n\nconst hashDocumento = crypto\n    .createHash(\"sha256\")\n    .update(contenidoHash)\n    .digest(\"hex\");\n\n\n\nreturn {\n    json: {\n        ...ticket,\n\n        documento_semantico: documentoSemantico,\n\n        hash_documento: hashDocumento\n    }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -16,
+        272
+      ],
+      "id": "7e01d4d4-5481-4d30-a1d0-502a123024f3",
+      "name": "Semantic Builder"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "2. Autenticar": {
+      "main": [
+        [
+          {
+            "node": "3. Consultar Bandeja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Consultar Bandeja": {
+      "main": [
+        [
+          {
+            "node": "Split Out - Separar Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Disparador - Evento": {
+      "main": [
+        [
+          {
+            "node": "2. Autenticar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out - Separar Tickets": {
+      "main": [
+        [
+          {
+            "node": "Contract Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contract Builder": {
+      "main": [
+        [
+          {
+            "node": "Semantic Builder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Semantic Builder": {
+      "main": [
+        [
+          {
+            "node": "Call 'Notifications | WhatsApp Dispatcher'",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "bfaa71dc-6255-4802-aa51-f037fcd3a2a8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f7a1b2bb3a48c9a3ed5a4c45c25f6dddf7852fd28778709ba9d4f95e2c843c08"
+  },
+  "nodeGroups": [],
+  "id": "r5cX61ltntYHqvfv",
+  "tags": []
+}

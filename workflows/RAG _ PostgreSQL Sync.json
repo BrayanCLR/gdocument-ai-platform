@@ -1,0 +1,33 @@
+{
+  "name": "RAG | PostgreSQL Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -288,
+        -64
+      ],
+      "id": "161176b4-9e55-4048-9eb2-29ad2441b3ea",
+      "name": "When Executed by Another Workflow"
+    }
+  ],
+  "pinData": {},
+  "connections": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "c61cd743-57fb-450e-af0e-0015d08a7909",
+  "meta": {
+    "instanceId": "f7a1b2bb3a48c9a3ed5a4c45c25f6dddf7852fd28778709ba9d4f95e2c843c08"
+  },
+  "nodeGroups": [],
+  "id": "XROxPQK0f3s6FNjk",
+  "tags": []
+}

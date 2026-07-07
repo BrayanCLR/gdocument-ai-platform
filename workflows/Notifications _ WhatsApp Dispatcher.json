@@ -1,0 +1,92 @@
+{
+  "name": "Notifications | WhatsApp Dispatcher",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        -64
+      ],
+      "id": "e9f0337e-01e0-4fd4-b9ba-5dc92933207b",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        -64
+      ],
+      "id": "f29854da-b674-4f9a-825a-a63469891b8b",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "5358c26e-8aa3-4156-9cff-754c59d9310e",
+              "name": "nombre_prueba",
+              "value": "Workflow Notifications funcionando",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        112,
+        -64
+      ],
+      "id": "ff8f5905-5bbf-4e2f-b068-cb4672e357ab",
+      "name": "Edit Fields"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "738c34d4-116c-48d3-832c-73ff75196141",
+  "meta": {
+    "instanceId": "f7a1b2bb3a48c9a3ed5a4c45c25f6dddf7852fd28778709ba9d4f95e2c843c08"
+  },
+  "nodeGroups": [],
+  "id": "jwcE18qV4AWBkrEC",
+  "tags": []
+}
