@@ -1,0 +1,16 @@
+# Variables de entorno
+.env
+
+# Datos persistentes
+n8n_data/
+evolution_sessions/
+
+# Logs
+*.log
+
+# Dependencias
+node_modules/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db

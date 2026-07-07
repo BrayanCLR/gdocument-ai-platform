@@ -1,0 +1,214 @@
+{
+  "name": "GDocument | Resumen Diario de SLA",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 5 7 * * 1-5"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -624,
+        176
+      ],
+      "id": "5eaeeb1e-bf1c-4392-a388-ee4cfb0e09f5",
+      "name": "Disparador Diario"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://produccion.gdocument.co/app/login",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"login\": \"{{$env.GDOCUMENT_USER}}\",\n    \"clave\": \"{{$env.GDOCUMENT_PASSWORD}}\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -416,
+        16
+      ],
+      "id": "43860e4e-4255-40c6-b8c7-a77ed842fa6b",
+      "name": "HTTP Login"
+    },
+    {
+      "parameters": {
+        "url": "https://produccion.gdocument.co/api/ejecucion_flujos/usuario?filter=&page=1&size=50&entity=&order%5Bdirection%5D=DESC",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "={{ $json.headers['set-cookie'][0] }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json, text/plain, */*"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -192,
+        160
+      ],
+      "id": "632ab043-7669-4055-85d4-6110dd5f26a7",
+      "name": "HTTP - Consultar Bandeja"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Capturamos la hora actual y configuramos el umbral\nconst ahora = new Date();\nconst UMBRAL_DIAS = 1;\n\n// Variables para armar el reporte\nlet cuerpoReporte = \"\";\nlet totalCriticos = 0;\n\n// Función auxiliar para traducir el formato de GDocument\nfunction parsearFechaGDoc(fechaString) {\n  const fechaPartes = fechaString.split(\" \");\n  const [dia, mes, anio] = fechaPartes[0].split(\"-\").map(Number);\n  let [hora, minutos] = fechaPartes[1].split(\":\").map(Number);\n  const ampm = fechaPartes[2];\n\n  if (ampm === \"PM\" && hora !== 12) hora += 12;\n  if (ampm === \"AM\" && hora === 12) hora = 0;\n\n  return new Date(anio, mes - 1, dia, hora, minutos);\n}\n\n// 2. Recorremos todos los tickets que salieron del Split Out\nfor (const item of $input.all()) {\n  const ticket = item.json;\n\n  if (!ticket.fechaInicio) continue;\n\n  const fechaCreacion = parsearFechaGDoc(ticket.fechaInicio);\n  const diferenciaMs = ahora - fechaCreacion;\n\n  const msEnUnDia = 86400000;\n  const msEnUnaHora = 3600000;\n\n  const diasEnEspera = Math.floor(diferenciaMs / msEnUnDia);\n  const horasEnEspera = Math.floor((diferenciaMs % msEnUnDia) / msEnUnaHora);\n\n  // 3. Si cumple la condición, lo añadimos a las líneas del reporte\n  if (diasEnEspera >= UMBRAL_DIAS) {\n    totalCriticos++;\n    \n    // Extraemos la sede de forma segura por si no existe en el JSON\n    const sede = ticket.busqueda?.direccion_de_soporte || \"Sede no especificada\";\n    const empresa = ticket.busqueda?.cliente || \"Cliente no especificado\";\n\n    cuerpoReporte += `• 🎫 *Radicado:* \\`${ticket.radicado}\\`\\n`;\n    cuerpoReporte += `  🏢 *Empresa:* ${empresa}\\n`;\n    cuerpoReporte += `  📍 *Sede:* ${sede}\\n`;\n    cuerpoReporte += `  ⏳ *Espera:* ${diasEnEspera} día(s) y ${horasEnEspera} hora(s)\\n`;\n    cuerpoReporte += `─────────────────────\\n`;\n  }\n}\n\n// 4. Diseñamos el encabezado y cierre del mensaje según el resultado\nlet mensajeFinal = \"\";\n\nif (totalCriticos > 0) {\n  mensajeFinal = `📊 *REPORTE DIARIO: TICKETS CRÍTICOS SIN ASIGNAR* 📊\\n\\n`;\n  mensajeFinal += `⚠️ Se encontraron *${totalCriticos}* requerimientos con más de ${UMBRAL_DIAS} día de retraso en la bandeja global.\\n\\n`;\n  mensajeFinal += cuerpoReporte;\n  mensajeFinal += `\\n_🔧 Por favor, el equipo técnico ingresar a GDocument para gestionar estos casos prioritarios._\\n🔗 *Tomar flujo crítico:* https://produccion.gdocument.co/login`;\n} else {\n  mensajeFinal = `📊 *REPORTE DIARIO: TICKETS CRÍTICOS SIN ASIGNAR* 📊\\n\\n`;\n  mensajeFinal += `✅ *¡Excelente!* No se encontraron tickets retrasados con más de ${UMBRAL_DIAS} día en la bandeja global. Todo el flujo está al día.`;\n}\n\n// 5. Retornamos UN SOLO objeto con todo el texto consolidado\nreturn [{ json: { reporteMarkdown: mensajeFinal, total: totalCriticos } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        176
+      ],
+      "id": "7544b70c-c076-4f4a-a207-c7c05f846029",
+      "name": "Code - Transformación Mensaje"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/BotGd",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.EVOLUTION_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"120363409649791583@g.us\",\n  \"text\": {{ JSON.stringify($json.reporteMarkdown) }},\n  \"delay\": 1200,\n  \"linkPreview\": false\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        368,
+        16
+      ],
+      "id": "5fb61d60-6db8-4b07-b16a-c6209f5a10f2",
+      "name": "HTTP - Envio De Alerta"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data[hydra:member]",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "8cc7929c-747c-4502-bb71-bca26f9f0150",
+      "name": "Split Out - Separar Tickets"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Disparador Diario": {
+      "main": [
+        [
+          {
+            "node": "HTTP Login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Login": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Consultar Bandeja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP - Consultar Bandeja": {
+      "main": [
+        [
+          {
+            "node": "Split Out - Separar Tickets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Transformación Mensaje": {
+      "main": [
+        [
+          {
+            "node": "HTTP - Envio De Alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out - Separar Tickets": {
+      "main": [
+        [
+          {
+            "node": "Code - Transformación Mensaje",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "8c3d6521-5d6a-4a76-87aa-a97325f2bb1f",
+  "meta": {
+    "instanceId": "0e3f00b5fcf0772cd9c5ea98fe7a0cea9e4becde679c3c859756bc5af124dbdb"
+  },
+  "nodeGroups": [],
+  "id": "gkbNghO87jR7IUbb",
+  "tags": []
+}

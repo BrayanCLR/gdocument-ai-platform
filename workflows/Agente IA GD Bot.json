@@ -1,0 +1,774 @@
+{
+  "name": "Agente IA GD Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "evolution",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        1216,
+        224
+      ],
+      "id": "8e33472d-d8b2-460e-b79b-0817789f3898",
+      "name": "Webhook",
+      "webhookId": "6f605c17-0103-40d9-87ba-2fd13092974f"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d564c10b-1143-4b2c-9c40-6bb7501bb413",
+              "leftValue": "={{ $json.body.data.message.conversation }}",
+              "rightValue": "GD bot",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              }
+            },
+            {
+              "id": "b7407668-69d9-49ae-a66c-f929039d710b",
+              "leftValue": "={{ $json.body.data.key.fromMe }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "b90ca33c-5092-4934-b544-dd1a38cd0bc1",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "messages.upsert",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "29ecba5f-d30f-4791-90e4-56453b608831",
+              "leftValue": "={{ $json.body.data.message.conversation }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1440,
+        224
+      ],
+      "id": "3af14d55-df11-4e59-a20a-98fc0131dd96",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.pregunta }}",
+        "options": {
+          "systemMessage": "Eres el soporte técnico de GDocument.\nUsa \"Consultar Base de Tickets\" antes de responder sobre estados, historial o conteos.\n\nCONTEO: Cuenta de forma individual por \"Ticket ID\" o \"Radicado\". Da la cifra exacta.\nSEGUIMIENTO: Usa la memoria para responder sobre el ticket previo sin pedir el ID de nuevo. Si no hay solución explícita, sugiere una corta. No inventes. Responde en español y directo.\n\nHERRAMIENTAS DE ACTUALIZACIÓN:\n\n1. ASIGNAR (\"GD bot asigna a [Nombre] radicado [X]\"):\n   Usa la herramienta \"Asignar Tecnico\".\n   - Radicado: número del radicado\n   - Tecnico_Asignado: nombre del técnico\n   Confirma de forma corta.\n\n2. CERRAR (\"GD bot cerrar ticket radicado [X]\"):\n   Usa la herramienta \"Cerrar Ticket\".\n   - Radicado: número del radicado\n   La fecha de cierre se registra automáticamente.\n   Confirma el cierre de forma corta."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2048,
+        224
+      ],
+      "id": "2916abc3-81df-4720-8ff2-6ce53c983716",
+      "name": "AI Agent",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        2224,
+        656
+      ],
+      "id": "2818e05c-5061-4483-8755-7715e95f9e84",
+      "name": "Embeddings Google Gemini",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "R16cSR0bbmfROHg0",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "fd19f731-26a2-44e4-9528-433dba62ddf1",
+              "name": "pregunta",
+              "value": "={{\n$json.body.data.message.conversation\n.replace(/^GD bot/i,'')\n.trim()\n}}",
+              "type": "string"
+            },
+            {
+              "id": "5dd73962-c636-4ea0-84ce-9c392b3871c6",
+              "name": "fecha_actual_colombia",
+              "value": "={{ $now.setZone('America/Bogota').toFormat('dd-MM-yyyy HH:mm') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1664,
+        224
+      ],
+      "id": "4187a0de-e3ef-43db-85a6-5ebc3be77294",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Base de conocimiento de tickets de soporte técnico de GDocument.\n\nContiene información histórica de incidencias, incluyendo:\n\n- ID del ticket\n- Radicado\n- Cliente o empresa\n- Ciudad y sede\n- Marca y modelo del equipo\n- Número de serial\n- Consumibles\n- Tipo de requerimiento\n- Descripción del problema\n\nUsa esta herramienta cuando el usuario pregunte sobre:\n\n- tickets\n- clientes\n- empresas\n- seriales\n- impresoras\n- incidencias\n- consumibles\n- radicados\n- sedes\n- historial de soporte\n- problemas de un equipo\n\nLa herramienta realiza búsqueda semántica y devuelve los tickets más relacionados con la consulta.",
+        "redisIndex": {
+          "__rl": true,
+          "value": "tickets_soporte",
+          "mode": "list",
+          "cachedResultName": "tickets_soporte"
+        },
+        "topK": 5,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreRedis",
+      "typeVersion": 1.3,
+      "position": [
+        2144,
+        448
+      ],
+      "id": "dc407dc7-873d-4b04-98eb-4308f7abd5a1",
+      "name": "Consultar Base de Tickets",
+      "credentials": {
+        "redis": {
+          "id": "P6YbDOv77JxkMIY9",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://evolution-api:8080/message/sendText/BotGd",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{$env.EVOLUTION_API_KEY}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  number: \"120363407438481648@g.us\",\n\n  text:$json.output,\n\n  delay: 1200,\n  linkPreview: false,\n}\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2640,
+        224
+      ],
+      "id": "8c76bd3e-f76d-4a52-b0ed-d9556b4c5c8f",
+      "name": "Mensaje Construido - Notificaciones Por Ticket"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Webhook').item.json.body.data.key.remoteJid }}",
+        "sessionTTL": 30,
+        "contextWindowLength": 6
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.6,
+      "position": [
+        2016,
+        464
+      ],
+      "id": "9a792f29-5f41-49f0-a067-042fa2c3b4df",
+      "name": "Redis Chat Memory",
+      "credentials": {
+        "redis": {
+          "id": "P6YbDOv77JxkMIY9",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        1808,
+        448
+      ],
+      "id": "ffa62c46-d6d2-4259-8c56-e1b993c3f8ec",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "m41PoSrLmMjJoJzx",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Úsala SOLO para ASIGNAR un técnico a un ticket.\n\nCuándo invocar: cuando el usuario diga \"asigna a [Nombre] radicado [X]\" o similar.\n\nParámetros:\n- Radicado: número del radicado (obligatorio)\n- Tecnico_Asignado: nombre del técnico (obligatorio)\n\nEsta herramienta SOLO actualiza el campo Técnico Asignado. No toca Fecha Cierre.",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "13EoVRbSjpZ0xlyc0IAvEiaWjitOchUZstzKK11nppXg",
+          "mode": "list",
+          "cachedResultName": "Historial_Tickets_Soporte",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/13EoVRbSjpZ0xlyc0IAvEiaWjitOchUZstzKK11nppXg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1570037912,
+          "mode": "list",
+          "cachedResultName": "Historial_Tickets_Soporte",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/13EoVRbSjpZ0xlyc0IAvEiaWjitOchUZstzKK11nppXg/edit#gid=1570037912"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Radicado": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Radicado', ``, 'string') }}",
+            "Técnico Asignado": "={{ $fromAI('Tecnico_Asignado', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "Radicado"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Radicado",
+              "displayName": "Radicado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fecha Registro",
+              "displayName": "Fecha Registro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Empresa",
+              "displayName": "Empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sede",
+              "displayName": "Sede",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Marca",
+              "displayName": "Marca",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Modelo",
+              "displayName": "Modelo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Serial",
+              "displayName": "Serial",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Consumible",
+              "displayName": "Consumible",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Tipo Solicitud",
+              "displayName": "Tipo Solicitud",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Descripción Caso",
+              "displayName": "Descripción Caso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Técnico Asignado",
+              "displayName": "Técnico Asignado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fecha Cierre",
+              "displayName": "Fecha Cierre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Reincidencias",
+              "displayName": "Reincidencias",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        2496,
+        432
+      ],
+      "id": "633a0739-94d0-4b38-9744-bcba919dea33",
+      "name": "Asignar Tecnico",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "SMkaGG1e7S7PLqS3",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Úsala SOLO para CERRAR un ticket registrando la fecha de cierre.\n\nCuándo invocar: cuando el usuario diga \"cerrar ticket radicado [X]\" o similar.\n\nParámetros:\n- Radicado: número del radicado (obligatorio)\n\nEsta herramienta SOLO actualiza Fecha Cierre con la fecha actual. No toca ni envía el campo Técnico Asignado.",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "13EoVRbSjpZ0xlyc0IAvEiaWjitOchUZstzKK11nppXg",
+          "mode": "list",
+          "cachedResultName": "Historial_Tickets_Soporte",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/13EoVRbSjpZ0xlyc0IAvEiaWjitOchUZstzKK11nppXg/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1570037912,
+          "mode": "list",
+          "cachedResultName": "Historial_Tickets_Soporte",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/13EoVRbSjpZ0xlyc0IAvEiaWjitOchUZstzKK11nppXg/edit#gid=1570037912"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Radicado": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Radicado', ``, 'string') }}",
+            "Fecha Cierre": "={{ $('Edit Fields').item.json.fecha_actual_colombia }}"
+          },
+          "matchingColumns": [
+            "Radicado"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Radicado",
+              "displayName": "Radicado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Fecha Registro",
+              "displayName": "Fecha Registro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Empresa",
+              "displayName": "Empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Sede",
+              "displayName": "Sede",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Marca",
+              "displayName": "Marca",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Modelo",
+              "displayName": "Modelo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Serial",
+              "displayName": "Serial",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Consumible",
+              "displayName": "Consumible",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Tipo Solicitud",
+              "displayName": "Tipo Solicitud",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Descripción Caso",
+              "displayName": "Descripción Caso",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Técnico Asignado",
+              "displayName": "Técnico Asignado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Fecha Cierre",
+              "displayName": "Fecha Cierre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Reincidencias",
+              "displayName": "Reincidencias",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        2432,
+        592
+      ],
+      "id": "21baf457-68ff-4c64-9f48-63f2582fc7b1",
+      "name": "Cerrar Ticket",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "SMkaGG1e7S7PLqS3",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Mensaje Construido - Notificaciones Por Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Consultar Base de Tickets",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consultar Base de Tickets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asignar Tecnico": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cerrar Ticket": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "65bfb677-3e66-4d83-ac61-6ec9c103ed78",
+  "meta": {
+    "instanceId": "5e7b2ea3972953b038c5619f7ec9798380a89d41c1cc6021c3697c0355764e89"
+  },
+  "nodeGroups": [],
+  "id": "hFUDkRqvbvWcs5aV",
+  "tags": []
+}
