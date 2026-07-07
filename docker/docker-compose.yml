@@ -19,7 +19,7 @@ services:
     container_name: evolution_api
     restart: unless-stopped
     env_file:
-      - .env
+      - ../.env
     depends_on:
       - postgres_db
       - redis_db
@@ -57,7 +57,7 @@ services:
     container_name: n8n_server
     restart: unless-stopped
     env_file:
-      - .env
+      - ../.env
     environment:
       - N8N_SECURE_COOKIE=false
       - N8N_HOST=n8n.brayan.co
