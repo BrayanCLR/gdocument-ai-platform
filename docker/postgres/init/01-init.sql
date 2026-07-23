@@ -8,11 +8,11 @@
 -- INICIALIZACIÓN DE BASE DE DATOS
 -- ==========================================================================
 
--- Crear la base de datos si no existe de forma segura
-SELECT 'CREATE DATABASE gdocument_ai' 
-WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'gdocument_ai')\gexec
+SELECT 'CREATE DATABASE gdocument_ai'
+WHERE NOT EXISTS (
+    SELECT FROM pg_database WHERE datname = 'gdocument_ai'
+)\gexec
 
--- Conectarse explícitamente a la base de datos del proyecto
 \c gdocument_ai
 
 -- ==========================================================================
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS tickets (
     --------------------------------------------------------------------------
     id                  VARCHAR(50) PRIMARY KEY,
     radicado            VARCHAR(50) UNIQUE NOT NULL,
-    origen              VARCHAR(50) DEFAULT 'gdocument',
+    origen              VARCHAR(50) DEFAULT 'GDocument',
 
     --------------------------------------------------------------------------
     -- Cliente
@@ -65,6 +65,12 @@ CREATE TABLE IF NOT EXISTS tickets (
     descripcion         TEXT,
 
     --------------------------------------------------------------------------
+    -- Fechas del negocio
+    --------------------------------------------------------------------------
+    fecha_radicado      TIMESTAMP,
+    fecha_cierre        TIMESTAMP,
+
+    --------------------------------------------------------------------------
     -- Gestión
     --------------------------------------------------------------------------
     estado              VARCHAR(50) DEFAULT 'Pendiente',
@@ -78,13 +84,14 @@ CREATE TABLE IF NOT EXISTS tickets (
     embedding           VECTOR(768),
 
     --------------------------------------------------------------------------
-    -- Metadatos Flexibles
+    -- Metadatos
     --------------------------------------------------------------------------
     metadata            JSONB,
 
     --------------------------------------------------------------------------
-    -- Auditoría
+    -- Auditoría de la plataforma
     --------------------------------------------------------------------------
+    fecha_extraccion    TIMESTAMP,
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_sync_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -102,13 +109,22 @@ COMMENT ON COLUMN tickets.documento_semantico IS
 'Texto utilizado para generar embeddings';
 
 COMMENT ON COLUMN tickets.hash_documento IS
-'Hash utilizado para detectar cambios semánticos';
+'Hash SHA256 utilizado para detectar cambios semánticos';
 
 COMMENT ON COLUMN tickets.embedding IS
-'Vector generado por Gemini Embeddings';
+'Vector generado mediante Gemini Embeddings';
 
 COMMENT ON COLUMN tickets.metadata IS
-'Información adicional en formato JSON';
+'Información adicional del ticket en formato JSON';
+
+COMMENT ON COLUMN tickets.fecha_radicado IS
+'Fecha original de creación del ticket en GDocument';
+
+COMMENT ON COLUMN tickets.fecha_cierre IS
+'Fecha de cierre del ticket en GDocument';
+
+COMMENT ON COLUMN tickets.fecha_extraccion IS
+'Momento en que el Data Provider sincronizó el ticket';
 
 -- ==========================================================================
 -- ÍNDICES SQL
@@ -129,6 +145,9 @@ ON tickets(serial_equipo);
 CREATE INDEX IF NOT EXISTS idx_ticket_tipo
 ON tickets(tipo_requerimiento);
 
+CREATE INDEX IF NOT EXISTS idx_ticket_fecha_radicado
+ON tickets(fecha_radicado);
+
 -- ==========================================================================
 -- ÍNDICE VECTORIAL
 -- ==========================================================================
@@ -146,6 +165,7 @@ RETURNS TRIGGER AS
 $$
 BEGIN
     NEW.updated_at := NOW();
+    NEW.last_sync_at := NOW();
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

@@ -16,16 +16,90 @@
     },
     {
       "parameters": {
-        "jsCode": "const crypto = require('crypto');\n\n// ======================================================\n// RAG | PostgreSQL Sync\n// Semantic Builder\n// ======================================================\n\n// Función para evitar null/undefined\nfunction value(v) {\n\treturn v ?? \"\";\n}\n\n// ======================================================\n// Documento semántico\n// ======================================================\n\nconst documento = `\nDocumento de soporte técnico\n\nRadicado: ${value($json.radicado)}\n\nEmpresa: ${value($json.empresa)}\nCiudad: ${value($json.ciudad)}\nSede: ${value($json.sede)}\nDirección: ${value($json.direccion)}\nÁrea: ${value($json.area)}\n\nContacto: ${value($json.contacto)}\nTeléfono: ${value($json.telefono)}\n\nEquipo: ${value($json.marca)} ${value($json.modelo)}\nSerial: ${value($json.serial)}\nConsumible: ${value($json.consumible)}\n\nTipo de requerimiento: ${value($json.tipo_requerimiento)}\n\nDescripción:\n${value($json.descripcion)}\n\nTécnico asignado: ${value($json.tecnico_asignado)}\n\nEstado: ${value($json.estado)}\n`.trim();\n\n// ======================================================\n// HASH del contenido semántico\n// ======================================================\n\nconst hash = crypto\n\t.createHash(\"sha256\")\n\t.update(documento, \"utf8\")\n\t.digest(\"hex\");\n\n// ======================================================\n// Salida\n// ======================================================\n\nreturn {\n\tjson: {\n\n\t\t...$json,\n\n\t\tdocumento_semantico: documento,\n\n\t\thash_documento: hash,\n\n\t\tversion_documento: 1,\n\n\t\tfecha_vectorizacion: new Date().toISOString()\n\n\t}\n};"
+        "jsCode": "const crypto = require('crypto');\n\n// ======================================================\n// RAG | PostgreSQL Sync\n// Semantic Builder\n// ======================================================\n\nfunction value(v) {\n\treturn v ?? \"\";\n}\n\nreturn items.map(item => {\n\n\tconst json = item.json;\n\n\tconst documento = `\nDocumento de soporte técnico\n\nRadicado: ${value(json.radicado)}\n\nEmpresa: ${value(json.empresa)}\nCiudad: ${value(json.ciudad)}\nSede: ${value(json.sede)}\nDirección: ${value(json.direccion)}\nÁrea: ${value(json.area)}\n\nContacto: ${value(json.contacto)}\nTeléfono: ${value(json.telefono)}\n\nEquipo: ${value(json.marca)} ${value(json.modelo)}\nSerial: ${value(json.serial)}\nConsumible: ${value(json.consumible)}\n\nTipo de requerimiento: ${value(json.tipo_requerimiento)}\n\nDescripción:\n${value(json.descripcion)}\n\nFecha de radicado: ${value(json.fecha_radicado)}\nFecha de cierre: ${value(json.fecha_cierre)}\n\nTécnico asignado: ${value(json.tecnico_asignado)}\n\nEstado: ${value(json.estado)}\n`.trim();\n\n\tconst hash = crypto\n\t\t.createHash(\"sha256\")\n\t\t.update(documento, \"utf8\")\n\t\t.digest(\"hex\");\n\n\treturn {\n\t\tjson: {\n\t\t\t...json,\n\n\t\t\tdocumento_semantico: documento,\n\t\t\thash_documento: hash,\n\n\t\t\tversion_documento: 1,\n\t\t\tfecha_vectorizacion: new Date().toISOString()\n\t\t}\n\t};\n\n});"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        0,
+        144,
         -64
       ],
       "id": "5080c1b8-758c-4816-929d-17a21d1df0f7",
       "name": "01. Semantic Builder"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "4073ea61-748a-4eae-832d-12255a637b07",
+              "leftValue": "={{ $json.id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        592,
+        -64
+      ],
+      "id": "1a2f577a-bb17-4a09-bade-fbceebab0dd9",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tickets",
+          "mode": "list",
+          "cachedResultName": "tickets"
+        },
+        "where": {
+          "values": [
+            {
+              "column": "radicado",
+              "value": "={{ $json.radicado }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        368,
+        -64
+      ],
+      "id": "39faae1f-7521-4faa-99a3-c27e5b0e5d02",
+      "name": "Select rows from a table",
+      "alwaysOutputData": true,
+      "credentials": {
+        "postgres": {
+          "id": "gaWWSSjhn3QY5dJZ",
+          "name": "Postgres account"
+        }
+      }
     },
     {
       "parameters": {
@@ -293,6 +367,36 @@
               "display": true,
               "type": "dateTime",
               "canBeUsedToMatch": true
+            },
+            {
+              "id": "fecha_radicado",
+              "displayName": "fecha_radicado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha_cierre",
+              "displayName": "fecha_cierre",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "fecha_extraccion",
+              "displayName": "fecha_extraccion",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true,
+              "removed": false
             }
           ],
           "attemptToConvertTypes": false,
@@ -303,11 +407,11 @@
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.6,
       "position": [
-        208,
-        -64
+        480,
+        160
       ],
       "id": "5215f293-19ab-45c8-a097-2a165c39ea8a",
-      "name": "02. Search Ticket",
+      "name": "Insert",
       "alwaysOutputData": true,
       "credentials": {
         "postgres": {
@@ -318,37 +422,16 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "4073ea61-748a-4eae-832d-12255a637b07",
-              "leftValue": "={{ $json.id}}",
-              "rightValue": "",
-              "operator": {
-                "type": "number",
-                "operation": "exists",
-                "singleValue": true
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+        "jsCode": "return items;"
       },
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.3,
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
-        416,
-        -64
+        -80,
+        192
       ],
-      "id": "1a2f577a-bb17-4a09-bade-fbceebab0dd9",
-      "name": "If"
+      "id": "a4b29943-2b84-4fbb-8ff2-2357a7cacd1b",
+      "name": "Code in JavaScript"
     }
   ],
   "pinData": {},
@@ -368,14 +451,14 @@
       "main": [
         [
           {
-            "node": "02. Search Ticket",
+            "node": "Insert",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "02. Search Ticket": {
+    "Select rows from a table": {
       "main": [
         [
           {
@@ -385,6 +468,22 @@
           }
         ]
       ]
+    },
+    "If": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "Insert": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        []
+      ]
     }
   },
   "active": false,
@@ -393,7 +492,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "85319611-cae5-4b8f-87c9-597729292228",
+  "versionId": "a811362c-1f70-40af-bb32-93467bfb405d",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "f7a1b2bb3a48c9a3ed5a4c45c25f6dddf7852fd28778709ba9d4f95e2c843c08"
